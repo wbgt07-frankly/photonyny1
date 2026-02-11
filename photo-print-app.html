@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Печать Фото</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: var(--tg-theme-text-color);
+        }
+
+        .header p {
+            color: var(--tg-theme-hint-color, #999);
+            font-size: 14px;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--tg-theme-button-color, #0088cc);
+            border-radius: 12px;
+            padding: 32px 16px;
+            text-align: center;
+            margin-bottom: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-zone:hover {
+            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+        }
+
+        .upload-zone.dragover {
+            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            border-color: var(--tg-theme-button-color, #0088cc);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: var(--tg-theme-text-color);
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: var(--tg-theme-hint-color, #999);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-number {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 59, 48, 0.9);
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .delete-btn:active {
+            transform: scale(0.9);
+        }
+
+        .counter {
+            text-align: center;
+            padding: 12px;
+            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .counter.complete {
+            background: rgba(52, 199, 89, 0.1);
+            color: #34c759;
+        }
+
+        .order-form {
+            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .order-form.visible {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--tg-theme-text-color);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--tg-theme-hint-color, #ccc);
+            border-radius: 8px;
+            font-size: 16px;
+            background: var(--tg-theme-bg-color, #fff);
+            color: var(--tg-theme-text-color);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .price-info {
+            background: var(--tg-theme-bg-color, #fff);
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .price-row.total {
+            font-size: 18px;
+            font-weight: 600;
+            padding-top: 8px;
+            border-top: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+            margin-top: 8px;
+        }
+
+        .error {
+            background: rgba(255, 59, 48, 0.1);
+            color: #ff3b30;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error.visible {
+            display: block;
+        }
+
+        .success {
+            background: rgba(52, 199, 89, 0.1);
+            color: #34c759;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .success.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📸 Печать Фото</h1>
+        <p>Загрузите до 10 фотографий</p>
+    </div>
+
+    <div class="error" id="error"></div>
+    <div class="success" id="success"></div>
+
+    <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">Нажмите для загрузки</div>
+        <div class="upload-hint">или перетащите фотографии сюда</div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" multiple>
+
+    <div class="counter" id="counter">
+        Загружено фото: <strong>0/10</strong>
+    </div>
+
+    <div class="photos-grid" id="photosGrid"></div>
+
+    <div class="order-form" id="orderForm">
+        <h3 style="margin-bottom: 16px;">Детали заказа</h3>
+        
+        <div class="form-group">
+            <label>Адрес доставки</label>
+            <textarea id="address" placeholder="Введите адрес для доставки"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Телефон</label>
+            <input type="tel" id="phone" placeholder="+7 (___) ___-__-__">
+        </div>
+
+        <div class="form-group">
+            <label>Комментарий (необязательно)</label>
+            <textarea id="comment" placeholder="Особые пожелания к заказу"></textarea>
+        </div>
+
+        <div class="price-info">
+            <div class="price-row">
+                <span>Печать (<span id="photoCount">0</span> фото)</span>
+                <span id="printPrice">₽0</span>
+            </div>
+            <div class="price-row">
+                <span>Доставка</span>
+                <span>₽200</span>
+            </div>
+            <div class="price-row total">
+                <span>Итого</span>
+                <span id="totalPrice">₽200</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.MainButton.setText('Оформить заказ');
+        tg.MainButton.hide();
+
+        // Настройка темы
+        document.body.style.background = tg.themeParams.bg_color || '#ffffff';
+
+        // Хранилище фотографий
+        let photos = [];
+        const MAX_PHOTOS = 10;
+
+        // Цены
+        const PRICE_PER_PHOTO = 20; // Стандартная цена за фото
+        const DELIVERY_PRICE = 200;
+
+        // Элементы
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const photosGrid = document.getElementById('photosGrid');
+        const counter = document.getElementById('counter');
+        const orderForm = document.getElementById('orderForm');
+        const errorEl = document.getElementById('error');
+        const successEl = document.getElementById('success');
+        const printSize = document.getElementById('printSize');
+
+        // Обработчики загрузки
+        uploadZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFiles);
+
+        // Drag & Drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles({ target: { files: e.dataTransfer.files } });
+        });
+
+        // Обработка файлов
+        function handleFiles(e) {
+            const files = Array.from(e.target.files);
+            
+            if (photos.length + files.length > MAX_PHOTOS) {
+                showError(`Можно загрузить максимум ${MAX_PHOTOS} фотографий`);
+                return;
+            }
+
+            files.forEach(file => {
+                if (!file.type.startsWith('image/')) {
+                    showError('Можно загружать только изображения');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    photos.push({
+                        id: Date.now() + Math.random(),
+                        data: e.target.result,
+                        file: file
+                    });
+                    updateUI();
+                };
+                reader.readAsDataURL(file);
+            });
+
+            fileInput.value = '';
+        }
+
+        // Удаление фото
+        function deletePhoto(id) {
+            photos = photos.filter(p => p.id !== id);
+            updateUI();
+        }
+
+        // Обновление интерфейса
+        function updateUI() {
+            // Обновление счетчика
+            counter.innerHTML = `Загружено фото: <strong>${photos.length}/${MAX_PHOTOS}</strong>`;
+            
+            if (photos.length === MAX_PHOTOS) {
+                counter.classList.add('complete');
+            } else {
+                counter.classList.remove('complete');
+            }
+
+            // Обновление сетки фото
+            photosGrid.innerHTML = '';
+            photos.forEach((photo, index) => {
+                const item = document.createElement('div');
+                item.className = 'photo-item';
+                item.innerHTML = `
+                    <img src="${photo.data}" alt="Фото ${index + 1}">
+                    <div class="photo-number">${index + 1}</div>
+                    <button class="delete-btn" onclick="deletePhoto(${photo.id})">×</button>
+                `;
+                photosGrid.appendChild(item);
+            });
+
+            // Показать/скрыть форму заказа
+            if (photos.length > 0) {
+                orderForm.classList.add('visible');
+                tg.MainButton.show();
+                updatePrice();
+            } else {
+                orderForm.classList.remove('visible');
+                tg.MainButton.hide();
+            }
+        }
+
+        // Обновление цены
+        function updatePrice() {
+            const printTotal = photos.length * PRICE_PER_PHOTO;
+            const total = printTotal + DELIVERY_PRICE;
+
+            document.getElementById('photoCount').textContent = photos.length;
+            document.getElementById('printPrice').textContent = `₽${printTotal}`;
+            document.getElementById('totalPrice').textContent = `₽${total}`;
+        }
+
+        // Показать ошибку
+        function showError(message) {
+            errorEl.textContent = message;
+            errorEl.classList.add('visible');
+            setTimeout(() => errorEl.classList.remove('visible'), 3000);
+        }
+
+        // Показать успех
+        function showSuccess(message) {
+            successEl.textContent = message;
+            successEl.classList.add('visible');
+            setTimeout(() => successEl.classList.remove('visible'), 3000);
+        }
+
+        // Отправка заказа
+        tg.MainButton.onClick(() => {
+            const address = document.getElementById('address').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+
+            if (!address) {
+                showError('Укажите адрес доставки');
+                return;
+            }
+
+            if (!phone) {
+                showError('Укажите телефон');
+                return;
+            }
+
+            const orderData = {
+                photos: photos.map(p => p.data),
+                photoCount: photos.length,
+                printSize: '10x15',  // Стандартный размер
+                paperType: 'glossy', // Стандартная бумага
+                address: address,
+                phone: phone,
+                comment: document.getElementById('comment').value,
+                totalPrice: document.getElementById('totalPrice').textContent,
+                userId: tg.initDataUnsafe?.user?.id,
+                userName: tg.initDataUnsafe?.user?.first_name
+            };
+
+            // Отправка данных в бот
+            tg.sendData(JSON.stringify(orderData));
+            
+            // Или можно использовать tg.close() после отправки
+            showSuccess('Заказ отправлен! Ожидайте подтверждения.');
+        });
+
+        // Инициализация
+        updateUI();
+    </script>
+</body>
+</html>
